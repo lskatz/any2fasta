@@ -282,19 +282,22 @@ sub parse_gfa {
     chomp $line;
     my ($record_type, @fields) = split /\t/, $line;
     if ($record_type eq 'S') {
-      # S  seg_id  sequence  [optional tags]  – defines a segment (unitig) and its sequence
+      # S (Segment): seg_id  sequence  [optional tags]
+      # A named nucleotide sequence (unitig) that is a node in the assembly graph
       my ($seg_id, $seq) = @fields;
       $seg{$seg_id} = $seq;
     }
     elsif ($record_type eq 'L') {
-      # L  from_id  from_orient  to_id  to_orient  CIGAR  – link (edge) between two segments
+      # L (Link): from_id  from_orient  to_id  to_orient  CIGAR
+      # A directed overlap edge between two segments; CIGAR e.g. "4M" means 4 bp exact overlap
       my ($from_id, $from_orient, $to_id, $to_orient, $cigar) = @fields;
       if (defined $cigar and $cigar =~ /^(\d+)M/) {
         $link{"$from_id:$from_orient:$to_id:$to_orient"} = $1;
       }
     }
     elsif ($record_type eq 'P') {
-      # P  path_name  seg+/-,seg+/-,...  overlap,overlap,...  – ordered walk of segments forming a contig
+      # P (Path): path_name  seg+/-,seg+/-,...  overlap,overlap,...
+      # An ordered, oriented walk of segments that assembles into a single contig
       my ($path_name, $seg_names, $overlap_str) = @fields;
       my @segs  = split /,/, $seg_names;
       my @ovlps = split /,/, ($overlap_str // '*');
@@ -326,24 +329,35 @@ sub parse_gfa {
           $seq = '';
           last;
         }
-        my $s = $seg{$id};
-        $s = revcomp($s) if $orient eq '-';
+        # Fetch the segment sequence, reverse-complementing it when the path uses '-' orientation
+        my $seg_seq = $seg{$id};
+        $seg_seq = revcomp($seg_seq) if $orient eq '-';
         if ($i == 0) {
-          $seq = $s;
+          # First segment: start the contig sequence with its full sequence
+          $seq = $seg_seq;
         }
         else {
-          # determine overlap: first try the P-line overlap list,
-          # then fall back to L-line lookup
-          my $ovl = 0;
-          my $o   = $ovlps->[$i - 1] // '*';
-          if ($o ne '*' and $o =~ /^(\d+)M/) {
-            $ovl = $1;
+          # Subsequent segment: trim the shared overlapping prefix before appending.
+          # The overlap length is the number of bases at the start of the current segment
+          # that are identical to the end of the previous segment and must not be duplicated.
+          #
+          # Resolution priority:
+          #   1. CIGAR string from the P-line overlap list (e.g. "4M" → 4 bp overlap)
+          #   2. Overlap length stored from the L-line for this directed edge
+          #   3. Default to 0 (concatenate with no trimming)
+          my $overlap_bp  = 0;
+          my $pline_cigar = $ovlps->[$i - 1] // '*';
+          if ($pline_cigar ne '*' and $pline_cigar =~ /^(\d+)M/) {
+            # P-line supplies an explicit overlap CIGAR – use it directly
+            $overlap_bp = $1;
           }
           else {
-            my ($prev_id, $prev_orient) = ($segs->[$i - 1] =~ /^(.+?)([+-])$/);
-            $ovl = $link{"$prev_id:$prev_orient:$id:$orient"} // 0;
+            # No P-line CIGAR – fall back to the L-line link between (prev → current)
+            my ($prev_seg_id, $prev_seg_orient) = ($segs->[$i - 1] =~ /^(.+?)([+-])$/);
+            $overlap_bp = $link{"$prev_seg_id:$prev_seg_orient:$id:$orient"} // 0;
           }
-          $seq .= substr($s, $ovl);
+          # Skip the overlapping prefix and append the unique portion of this segment
+          $seq .= substr($seg_seq, $overlap_bp);
         }
       }
       next unless $seq;
