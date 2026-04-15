@@ -346,7 +346,7 @@ sub parse_gfa {
         }
       }
       next unless $seq;
-      print ">$name unitigs=", join(",", @$segs), "\n", purify_seq($seq), "\n";
+      print ">$name num_unitigs=", scalar(@$segs), " unitigs=", join(",", @$segs), "\n", purify_seq($seq), "\n";
       $count++;
     }
     # output any segments that are not referenced by any path

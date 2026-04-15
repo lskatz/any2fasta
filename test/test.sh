@@ -106,7 +106,7 @@ setup() {
 }
 @test "Handle GFA P-line contig header includes unitig list" {
   run -0 $exe -q test_paths.gfa
-  [[ "${lines[0]}" =~ "unitigs=seg1+,seg2+,seg3+" ]]
+  [[ "${lines[0]}" =~ "num_unitigs=3 unitigs=seg1+,seg2+,seg3+" ]]
 }
 @test "GFA revcomp uses full IUPAC complement table" {
   run -0 $exe -q test_iupac.gfa
