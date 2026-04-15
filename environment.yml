@@ -1,3 +1,4 @@
+name: any2fasta
 channels:
   - conda-forge
   - bioconda
