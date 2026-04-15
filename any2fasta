@@ -263,7 +263,9 @@ sub parse_gff {
 sub revcomp {
   my($seq) = @_;
   $seq = reverse($seq);
-  $seq =~ tr/ACGTacgt/TGCAtgca/;
+  # Full IUPAC complement table (upper and lowercase):
+  #   A<->T  C<->G  R<->Y  S<->S  W<->W  K<->M  B<->V  D<->H  N<->N
+  $seq =~ tr/ACGTRYSWKMBDHVNacgtryswkmbdhvn/TGCAYRSWMKVHDBNtgcayrswmkvhdbn/;
   return $seq;
 }
 

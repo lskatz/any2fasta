@@ -104,6 +104,11 @@ setup() {
   run -0 $exe -q test_paths.gfa
   [[ "${lines[0]}" =~ "unitigs=seg1+,seg2+,seg3+" ]]
 }
+@test "GFA revcomp uses full IUPAC complement table" {
+  run -0 $exe -q test_iupac.gfa
+  # iupac segment ACGTRYWN reverse-complemented = NWRYACGT
+  [[ "$output" =~ "NWRYACGT" ]]
+}
 @test "Handle PDB" {
   run -0 $exe test.pdb
   [[ "$output" =~ ">1EK3-B" ]]  
