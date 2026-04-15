@@ -49,7 +49,7 @@ sub usage {
     "  -u       Uppercase the sequence\n",
     "  -g       Include VERSION (GENBANK,EMBL)\n",
     "  -s       Strip sequence descriptions (FASTA,FASTQ)\n",
-    "  -m INT   Min. unitigs per contig for GFA P-line assembly (default: 2)\n",
+    "  -m INT   Max. unitigs per contig for GFA P-line assembly (0=unlimited, default: 0)\n",
     "           WARNING: assembled contigs may overcount unitigs\n",
     "HOMEPAGE\n  $URL\n",
     "END\n";
@@ -69,8 +69,8 @@ $opt{v} and version();
 $opt{h} and usage(0);
 @ARGV or usage(1);
 my $prot = $opt{p};
-my $min_u = defined($opt{m}) ? int($opt{m}) : 2;
-err("Option -m requires a positive integer") if $min_u < 1;
+my $max_u = defined($opt{m}) ? int($opt{m}) : 0;
+err("Option -m requires a non-negative integer") if $max_u < 0;
 
 #......................................................................................
 sub msg {
@@ -311,10 +311,10 @@ sub parse_gfa {
     my %in_path;
     for my $path (@paths) {
       my ($name, $segs, $ovlps) = @$path;
-      # skip paths that don't meet the minimum-unitig threshold;
+      # skip paths that exceed the maximum-unitig threshold (0 = unlimited);
       # their segments are intentionally left out of %in_path so they
       # fall through to the raw-segment output below
-      next if @$segs < $min_u;
+      next if $max_u > 0 && @$segs > $max_u;
       # record every segment that appears in a qualifying path
       for my $s (@$segs) {
         (my $id = $s) =~ s/[+-]$//;
