@@ -1,0 +1,9 @@
+H	VN:Z:1.0
+S	seg1	ACGTACGTACGT
+S	seg2	ACGTTTTTTTTT
+S	seg3	ACGTGGGGGGGG
+S	orphan	CCCCCCCCCCCC
+L	seg1	+	seg2	+	4M
+L	seg2	+	seg3	+	4M
+P	contig1	seg1+,seg2+,seg3+	4M,4M
+P	single	seg1+	*

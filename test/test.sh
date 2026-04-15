@@ -84,6 +84,26 @@ setup() {
   run -0 $exe test.gfa
   [[ "${lines[0]}" =~ ">225289" ]]
 }
+@test "Handle GFA with P-lines (default min 2 unitigs)" {
+  run -0 $exe test_paths.gfa
+  [[ "$output" =~ ">contig1" ]]
+  [[ "$output" =~ ">orphan" ]]
+  [[ ! "$output" =~ ">single" ]]
+}
+@test "Handle GFA with P-lines -m 1 (include single-unitig paths)" {
+  run -0 $exe -m 1 test_paths.gfa
+  [[ "$output" =~ ">contig1" ]]
+  [[ "$output" =~ ">single" ]]
+  [[ "$output" =~ ">orphan" ]]
+}
+@test "Handle GFA P-line contig sequence is correctly stitched" {
+  run -0 $exe -q test_paths.gfa
+  [[ "${lines[1]}" == "ACGTACGTACGTTTTTTTTTGGGGGGGG" ]]
+}
+@test "Handle GFA P-line contig header includes unitig list" {
+  run -0 $exe -q test_paths.gfa
+  [[ "${lines[0]}" =~ "unitigs=seg1+,seg2+,seg3+" ]]
+}
 @test "Handle PDB" {
   run -0 $exe test.pdb
   [[ "$output" =~ ">1EK3-B" ]]  

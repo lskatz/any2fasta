@@ -49,6 +49,8 @@ sub usage {
     "  -u       Uppercase the sequence\n",
     "  -g       Include VERSION (GENBANK,EMBL)\n",
     "  -s       Strip sequence descriptions (FASTA,FASTQ)\n",
+    "  -m INT   Min. unitigs per contig for GFA P-line assembly (default: 2)\n",
+    "           WARNING: assembled contigs may overcount unitigs\n",
     "HOMEPAGE\n  $URL\n",
     "END\n";
   exit($errcode);
@@ -62,7 +64,7 @@ sub version {
 #......................................................................................
 
 my %opt;
-getopts('vhqnlukgsp', \%opt) or exit(-1);
+getopts('vhqnlukgspm:', \%opt) or exit(-1);
 $opt{v} and version();
 $opt{h} and usage(0);
 @ARGV or usage(1);
@@ -258,20 +260,103 @@ sub parse_gff {
 # https://github.com/GFA-spec/GFA-spec/blob/master/GFA1.md 
 # https://github.com/GFA-spec/GFA-spec/blob/master/GFA2.md 
 
+sub revcomp {
+  my($seq) = @_;
+  $seq = reverse($seq);
+  $seq =~ tr/ACGTacgt/TGCAtgca/;
+  return $seq;
+}
+
 sub parse_gfa {
   my($lines) = @_;
-  my %S;
-  my %P;
-  my $count=0;
+  my %seg;    # segment_id -> sequence
+  my %link;   # "from_id:from_orient:to_id:to_orient" -> overlap bp
+  my @paths;  # list of [ name, \@seg_orients, \@overlaps ]
+  my $count = 0;
+
   for my $line (@$lines) {
-    my(@x) = split m/\t/, $line;
-    # this is NOT the original contigs, rather the unitigs
-    # need to parse L (link) and P (path) to reconstruct the contigs
+    chomp $line;
+    my @x = split /\t/, $line;
     if ($x[0] eq 'S') {
-      print ">", $x[1], "\n", purify_seq($x[2]), "\n";
+      $seg{$x[1]} = $x[2];
+    }
+    elsif ($x[0] eq 'L') {
+      # L  from_id  from_orient  to_id  to_orient  CIGAR
+      if (defined $x[5] and $x[5] =~ /^(\d+)M/) {
+        $link{"$x[1]:$x[2]:$x[3]:$x[4]"} = $1;
+      }
+    }
+    elsif ($x[0] eq 'P') {
+      # P  name  seg+/-,seg+/-,...  overlap,overlap,...
+      my @segs  = split /,/, $x[2];
+      my @ovlps = split /,/, ($x[3] // '*');
+      push @paths, [ $x[1], \@segs, \@ovlps ];
+    }
+  }
+
+  if (@paths) {
+    my $min_u = defined($opt{m}) ? int($opt{m}) : 2;
+    err("Option -m requires a positive integer") if $min_u < 1;
+    wrn("GFA P-lines found: assembling contigs from unitig paths.",
+        "Contigs may overrepresent unitigs (each unitig can appear in multiple contigs).");
+    my %in_path;
+    for my $path (@paths) {
+      my ($name, $segs, $ovlps) = @$path;
+      # record every segment that appears in at least one path
+      for my $s (@$segs) {
+        (my $id = $s) =~ s/[+-]$//;
+        $in_path{$id} = 1;
+      }
+      # skip paths that don't meet the minimum-unitig threshold
+      next if @$segs < $min_u;
+
+      my $seq = '';
+      for my $i (0 .. $#$segs) {
+        my ($id, $orient) = ($segs->[$i] =~ /^(.+?)([+-])$/);
+        if (!exists $seg{$id}) {
+          wrn("Segment '$id' referenced in path '$name' not found in S-lines; skipping path");
+          $seq = '';
+          last;
+        }
+        my $s = $seg{$id};
+        $s = revcomp($s) if $orient eq '-';
+        if ($i == 0) {
+          $seq = $s;
+        }
+        else {
+          # determine overlap: first try the P-line overlap list,
+          # then fall back to L-line lookup
+          my $ovl = 0;
+          my $o   = $ovlps->[$i - 1] // '*';
+          if ($o ne '*' and $o =~ /^(\d+)M/) {
+            $ovl = $1;
+          }
+          else {
+            my ($prev_id, $prev_orient) = ($segs->[$i - 1] =~ /^(.+?)([+-])$/);
+            $ovl = $link{"$prev_id:$prev_orient:$id:$orient"} // 0;
+          }
+          $seq .= substr($s, $ovl);
+        }
+      }
+      next unless $seq;
+      print ">$name unitigs=", join(",", @$segs), "\n", purify_seq($seq), "\n";
+      $count++;
+    }
+    # output any segments that are not referenced by any path
+    for my $id (sort keys %seg) {
+      next if $in_path{$id};
+      print ">$id\n", purify_seq($seg{$id}), "\n";
       $count++;
     }
   }
+  else {
+    # no P-lines: output raw segments (unitigs) as before
+    for my $id (sort keys %seg) {
+      print ">$id\n", purify_seq($seg{$id}), "\n";
+      $count++;
+    }
+  }
+
   return $count;
 }
 
