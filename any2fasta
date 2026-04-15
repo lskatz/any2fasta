@@ -49,7 +49,7 @@ sub usage {
     "  -u       Uppercase the sequence\n",
     "  -g       Include VERSION (GENBANK,EMBL)\n",
     "  -s       Strip sequence descriptions (FASTA,FASTQ)\n",
-    "  -m INT   Min. unitigs per contig for GFA P-line assembly (default: 2)\n",
+    "  -m INT   Min. unitigs per contig for GFA P-line assembly (default: 1)\n",
     "           WARNING: assembled contigs may overcount unitigs\n",
     "HOMEPAGE\n  $URL\n",
     "END\n";
@@ -300,7 +300,7 @@ sub parse_gfa {
   }
 
   if (@paths) {
-    my $min_u = defined($opt{m}) ? int($opt{m}) : 2;
+    my $min_u = defined($opt{m}) ? int($opt{m}) : 1;
     err("Option -m requires a positive integer") if $min_u < 1;
     wrn("GFA P-lines found: assembling contigs from unitig paths.",
         "Contigs may overrepresent unitigs (each unitig can appear in multiple contigs).");
