@@ -276,21 +276,24 @@ sub parse_gfa {
 
   for my $line (@$lines) {
     chomp $line;
-    my @x = split /\t/, $line;
-    if ($x[0] eq 'S') {
-      $seg{$x[1]} = $x[2];
+    my ($record_type, @fields) = split /\t/, $line;
+    if ($record_type eq 'S') {
+      my ($seg_id, $seq) = @fields;
+      $seg{$seg_id} = $seq;
     }
-    elsif ($x[0] eq 'L') {
+    elsif ($record_type eq 'L') {
       # L  from_id  from_orient  to_id  to_orient  CIGAR
-      if (defined $x[5] and $x[5] =~ /^(\d+)M/) {
-        $link{"$x[1]:$x[2]:$x[3]:$x[4]"} = $1;
+      my ($from_id, $from_orient, $to_id, $to_orient, $cigar) = @fields;
+      if (defined $cigar and $cigar =~ /^(\d+)M/) {
+        $link{"$from_id:$from_orient:$to_id:$to_orient"} = $1;
       }
     }
-    elsif ($x[0] eq 'P') {
-      # P  name  seg+/-,seg+/-,...  overlap,overlap,...
-      my @segs  = split /,/, $x[2];
-      my @ovlps = split /,/, ($x[3] // '*');
-      push @paths, [ $x[1], \@segs, \@ovlps ];
+    elsif ($record_type eq 'P') {
+      # P  path_name  seg+/-,seg+/-,...  overlap,overlap,...
+      my ($path_name, $seg_names, $overlap_str) = @fields;
+      my @segs  = split /,/, $seg_names;
+      my @ovlps = split /,/, ($overlap_str // '*');
+      push @paths, [ $path_name, \@segs, \@ovlps ];
     }
   }
 
@@ -507,10 +510,9 @@ sub parse_pdb {
     #SEQRES   9 A  114  GLY GLY GLY THR LYS VAL GLU IL E LYS ARG
     #SEQRES   1 B  114  ASP ILE VAL MET THR GLN SER PR O ASP SER LEU ALA VAL
     next unless m/^SEQRES/;
-    my @x = split ' ', $_;
-    $seq{"$prefix-$x[2]"} .= 
-      join( '', map { $aa{uc($_)} || 'X'  } 
-        splice(@x,4) );
+    my ($seqres, $seq_num, $chain_id, $num_residues, @amino_acids) = split ' ', $_;
+    $seq{"$prefix-$chain_id"} .= 
+      join( '', map { $aa{uc($_)} || 'X' } @amino_acids );
   }
   for my $id (sort keys %seq) {
     print ">", $id, "\n", purify_seq($seq{$id}), "\n";
