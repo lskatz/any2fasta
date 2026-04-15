@@ -2,10 +2,22 @@ H	VN:Z:1.0
 S	seg1	ACGTACGTACGT
 S	seg2	ACGTTTTTTTTT
 S	seg3	ACGTGGGGGGGG
+S	seg4	ACGTAAAAAAAAAAAA
+S	seg5	ACGTCCCCCCCC
+S	seg6	ACGTTTTTGGGG
+S	seg7	ACGTGGTTGGTT
+S	seg8	ACGTCAAACAAA
 S	orphan	CCCCCCCCCCCC
 S	solo	TTTTAAAATTTT
 L	seg1	+	seg2	+	4M
 L	seg2	+	seg3	+	4M
-P	contig1	seg1+,seg2+,seg3+	4M,4M
+L	seg3	+	seg4	+	4M
+L	seg4	+	seg5	+	4M
+L	seg5	+	seg6	+	4M
+L	seg6	+	seg7	+	4M
+L	seg7	+	seg8	+	4M
+P	path1	seg1+,seg2+,seg3+	4M,4M
+P	path2	seg4+,seg5+,seg6+,seg7+,seg8+	4M,4M,4M,4M
+P	path3	seg3+,seg4+	4M
 P	single	seg1+	*
 P	loner	solo+	*

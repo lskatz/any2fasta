@@ -69,6 +69,8 @@ $opt{v} and version();
 $opt{h} and usage(0);
 @ARGV or usage(1);
 my $prot = $opt{p};
+my $min_u = defined($opt{m}) ? int($opt{m}) : 2;
+err("Option -m requires a positive integer") if $min_u < 1;
 
 #......................................................................................
 sub msg {
@@ -280,18 +282,19 @@ sub parse_gfa {
     chomp $line;
     my ($record_type, @fields) = split /\t/, $line;
     if ($record_type eq 'S') {
+      # S  seg_id  sequence  [optional tags]  – defines a segment (unitig) and its sequence
       my ($seg_id, $seq) = @fields;
       $seg{$seg_id} = $seq;
     }
     elsif ($record_type eq 'L') {
-      # L  from_id  from_orient  to_id  to_orient  CIGAR
+      # L  from_id  from_orient  to_id  to_orient  CIGAR  – link (edge) between two segments
       my ($from_id, $from_orient, $to_id, $to_orient, $cigar) = @fields;
       if (defined $cigar and $cigar =~ /^(\d+)M/) {
         $link{"$from_id:$from_orient:$to_id:$to_orient"} = $1;
       }
     }
     elsif ($record_type eq 'P') {
-      # P  path_name  seg+/-,seg+/-,...  overlap,overlap,...
+      # P  path_name  seg+/-,seg+/-,...  overlap,overlap,...  – ordered walk of segments forming a contig
       my ($path_name, $seg_names, $overlap_str) = @fields;
       my @segs  = split /,/, $seg_names;
       my @ovlps = split /,/, ($overlap_str // '*');
@@ -300,8 +303,6 @@ sub parse_gfa {
   }
 
   if (@paths) {
-    my $min_u = defined($opt{m}) ? int($opt{m}) : 2;
-    err("Option -m requires a positive integer") if $min_u < 1;
     wrn("GFA P-lines found: assembling contigs from unitig paths.",
         "Contigs may overrepresent unitigs (each unitig can appear in multiple contigs).");
     my %in_path;

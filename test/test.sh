@@ -86,7 +86,9 @@ setup() {
 }
 @test "Handle GFA with P-lines (default min 2 unitigs)" {
   run -0 $exe test_paths.gfa
-  [[ "$output" =~ ">contig1" ]]
+  [[ "$output" =~ ">path1" ]]
+  [[ "$output" =~ ">path2" ]]
+  [[ "$output" =~ ">path3" ]]
   [[ "$output" =~ ">orphan" ]]
   # sub-threshold paths are skipped, but their segments appear as raw output
   [[ "$output" =~ ">solo" ]]
@@ -95,18 +97,20 @@ setup() {
 }
 @test "Handle GFA with P-lines -m 1 (include single-unitig paths)" {
   run -0 $exe -m 1 test_paths.gfa
-  [[ "$output" =~ ">contig1" ]]
+  [[ "$output" =~ ">path1" ]]
+  [[ "$output" =~ ">path2" ]]
+  [[ "$output" =~ ">path3" ]]
   [[ "$output" =~ ">single" ]]
   [[ "$output" =~ ">loner" ]]
   [[ "$output" =~ ">orphan" ]]
 }
 @test "Handle GFA P-line contig sequence is correctly stitched" {
   run -0 $exe -q test_paths.gfa
-  [[ "${lines[1]}" == "ACGTACGTACGTTTTTTTTTGGGGGGGG" ]]
+  [[ "$output" =~ "ACGTACGTACGTTTTTTTTTGGGGGGGG" ]]
 }
 @test "Handle GFA P-line contig header includes unitig list" {
   run -0 $exe -q test_paths.gfa
-  [[ "${lines[0]}" =~ "num_unitigs=3 unitigs=seg1+,seg2+,seg3+" ]]
+  [[ "$output" =~ "num_unitigs=3 unitigs=seg1+,seg2+,seg3+" ]]
 }
 @test "GFA revcomp uses full IUPAC complement table" {
   run -0 $exe -q test_iupac.gfa
